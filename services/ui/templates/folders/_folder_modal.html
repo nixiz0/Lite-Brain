@@ -1,0 +1,141 @@
+<div id="folder-modal-{{ folder.id }}" class="fixed inset-0 z-50 flex items-center justify-center">
+  {# Clickable overlay #}
+  <div
+    class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"
+    hx-get="{{ url_for('modal_empty') }}"
+    hx-target="#modal-area"
+    hx-swap="innerHTML"
+  ></div>
+
+  {# Modal card #}
+  <div class="relative w-full max-w-3xl max-h-[80vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-xl flex flex-col overflow-hidden">
+    {# Header: folder name + actions #}
+    <header class="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
+      <form
+        class="flex items-center gap-2 flex-1"
+        hx-post="{{ url_for('rename_folder', folder_id=folder.id) }}"
+        hx-swap="none"
+      >
+        <input
+          type="text"
+          name="name"
+          value="{{ folder.name }}"
+          class="flex-1 bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        />
+        <button
+          type="submit"
+          class="px-3 py-1.5 text-xs rounded-md bg-cyan-500 hover:bg-cyan-600 text-white"
+        >
+          {{ t("folder_rename_button") }}
+        </button>
+      </form>
+
+      <div class="flex items-center gap-2">
+        <form
+          hx-delete="{{ url_for('delete_folder', folder_id=folder.id) }}"
+          hx-target="#modal-area"
+          hx-swap="innerHTML"
+          hx-confirm="{{ t('folder_delete_confirm') }}"
+        >
+          <button
+            type="submit"
+            class="px-3 py-1.5 text-xs rounded-md bg-red-500/80 hover:bg-red-600 text-white"
+          >
+            {{ t("folder_delete_button") }}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 grid place-content-center"
+          hx-get="{{ url_for('modal_empty') }}"
+          hx-target="#modal-area"
+          hx-swap="innerHTML"
+          aria-label="{{ t('folder_close_aria') }}"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.41 4.29 19.71 2.88 18.3 9.17 12 2.88 5.71 4.29 4.29 10.59 10.59 16.89 4.29z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    {# Upload area (drag & drop + autosubmit + limit 5) #}
+    <div class="px-5 pt-4 pb-3 border-b border-slate-800">
+      <form
+        id="upload-form-{{ folder.id }}"
+        data-dropzone
+        data-max-files="5"
+        hx-post="{{ url_for('upload_document', folder_id=folder.id) }}"
+        hx-target="#folder-documents-list"
+        hx-swap="innerHTML"
+        enctype="multipart/form-data"
+        hx-encoding="multipart/form-data"
+        hx-trigger="change from:#file-input-{{ folder.id }}"
+        hx-indicator="#upload-indicator-{{ folder.id }}"
+        hx-on::after-request="this.reset(); this.querySelector('[data-preview]').innerHTML=''; this.querySelector('[data-counter]').textContent='0/5'; htmx.trigger('body','refresh-folders')"
+        class="space-y-2"
+      >
+
+        {# Upload Dropzone #}
+        <div
+          id="dropzone-{{ folder.id }}"
+          class="group relative rounded-xl border-2 border-dashed border-slate-700 bg-slate-900/60 hover:bg-slate-900 transition p-5 cursor-pointer"
+          tabindex="0"
+        >
+          <input
+            id="file-input-{{ folder.id }}"
+            type="file"
+            name="files"
+            multiple
+            class="hidden"
+          />
+
+          <div class="flex items-center gap-4 pointer-events-none">
+            <div class="w-10 h-10 rounded-lg bg-slate-800 grid place-content-center">
+              {# Icon #}
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 13v6H5v-6H3v8h18v-8zM11 3h2v8h3l-4 4-4-4h3z"/>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm text-slate-200">
+                {{ t("folder_upload_headline") }}
+                <span class="underline decoration-dotted">
+                  {{ t("folder_upload_click_to_select") }}
+                </span>
+              </p>
+              <p class="text-xs text-slate-500">
+                {{ t("folder_upload_hint") }}
+              </p>
+            </div>
+            <div class="text-xs text-slate-400">
+              <span data-counter>0/5</span>
+            </div>
+          </div>
+        </div>
+
+        {# Loading indicator #}
+        <div
+          id="upload-indicator-{{ folder.id }}"
+          class="htmx-indicator items-center gap-2 text-xs text-slate-400 mt-2"
+        >
+          <span
+            class="inline-block w-4 h-4 border-2 border-slate-500 border-t-cyan-400 rounded-full animate-spin"
+          ></span>
+          <span>{{ t("folder_upload_loading") }}</span>
+        </div>
+
+        {# Preview selected files #}
+        <ul data-preview class="text-xs text-slate-300 space-y-1 max-h-24 overflow-y-auto"></ul>
+      </form>
+    </div>
+
+    {# List of documents #}
+    <div class="px-5 py-4 overflow-y-auto">
+      <div id="folder-documents-list">
+        {% include "folders/_folder_documents_list.html" %}
+      </div>
+    </div>
+  </div>
+</div>

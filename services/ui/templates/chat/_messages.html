@@ -1,0 +1,86 @@
+{% for m in messages %}
+  {% if m.role == "assistant" %}
+    <div class="flex items-start gap-3">
+      <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-900 grid place-content-center">A</div>
+      <div class="max-w-[75ch] md:max-w-[85ch]
+                  bg-slate-800/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-sm
+                  prose prose-invert prose-headings:font-semibold prose-pre:shadow-inner prose-img:rounded-xl
+                  prose-a:text-cyan-400 hover:prose-a:text-cyan-300">
+
+        {{ m.html | safe }}
+
+        {# --- RAG section: documents used --- #}
+        {% if m.rag_sources and m.rag_sources|length > 0 %}
+          <details class="mt-3 text-xs text-slate-300">
+            <summary class="cursor-pointer select-none flex items-center gap-1 hover:text-slate-100">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                <path d="M4 5h16v14H4z" stroke="currentColor" stroke-width="1.5" />
+                <path d="M8 9h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              </svg>
+              <span>
+                {{ t("msg_rag_summary").format(count=m.rag_sources|length) }}
+              </span>
+            </summary>
+
+            <div class="mt-2 space-y-2">
+              {% for s in m.rag_sources %}
+                <div class="border border-slate-700/70 rounded-lg bg-slate-900/60 px-3 py-2">
+                  <div class="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                    <div class="flex items-center gap-1 min-w-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 2h9l5 5v13c0 1.1-.9 2-2 2H6a2 2 0 0 1-2-2V4c0-1.1.9-2 2-2z"/>
+                      </svg>
+                      <span class="truncate max-w-[200px] md:max-w-[260px]">
+                        {{ s.file_name or t("msg_rag_doc_unknown") }}
+                      </span>
+                    </div>
+                    {% if s.chunk_index is not none %}
+                      <span class="text-[10px] text-slate-500">
+                        {{ t("msg_rag_chunk_label").format(index=s.chunk_index) }}
+                      </span>
+                    {% endif %}
+                  </div>
+                  {% if s.text %}
+                    <p class="mt-1 text-[11px] text-slate-300">
+                      {{ s.text[:260] }}{% if s.text|length > 260 %}…{% endif %}
+                    </p>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          </details>
+        {% endif %}
+
+        {# --- Timestamp (assistant): handled client-side using JavaScript --- #}
+        {% if m.ts %}
+          <time
+            class="msg-timestamp text-xs text-slate-400 mt-2 block"
+            datetime="{{ m.ts }}"
+          >
+            {{ (m.ts | replace("T"," "))[:19] }}
+          </time>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="flex items-start gap-3 justify-end">
+      <div class="max-w-[75ch] md:max-w-[85ch]
+                  bg-slate-900/70 border border-slate-800 rounded-2xl px-4 py-3 shadow-sm ml-auto
+                  prose prose-invert prose-headings:font-semibold prose-pre:shadow-inner prose-img:rounded-xl
+                  prose-a:text-cyan-400 hover:prose-a:text-cyan-300">
+        {{ m.html | safe }}
+
+        {# --- Timestamp (user): handled in client-side JS --- #}
+        {% if m.ts %}
+          <time
+            class="msg-timestamp text-xs text-slate-500 mt-2 block text-right"
+            datetime="{{ m.ts }}"
+          >
+            {{ (m.ts | replace("T"," "))[:19] }}
+          </time>
+        {% endif %}
+      </div>
+      <div class="w-8 h-8 rounded-full bg-slate-700 text-white grid place-content-center">U</div>
+    </div>
+  {% endif %}
+{% endfor %}

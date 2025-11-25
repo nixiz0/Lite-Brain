@@ -1,0 +1,10 @@
+<a
+  hx-get="{{ url_for('switch_conversation', conv_id=c.id) }}"
+  hx-target="#messages"
+  hx-swap="innerHTML"
+  href="{{ url_for('switch_conversation', conv_id=c.id) }}"
+  class="flex-1 px-3 py-2 rounded-lg transition truncate
+         {% if c.id == current_conversation_id %} bg-slate-800 text-white
+         {% else %} text-slate-200 hover:bg-slate-800 {% endif %}">
+  {{ c.title or ("Conv " ~ c.id) }}
+</a>

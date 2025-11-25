@@ -1,0 +1,43 @@
+<form
+  class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 w-full"
+  hx-post="{{ url_for('rename_conversation', conv_id=conv.id) }}"
+  hx-target="#conv-{{ conv.id }}"
+  hx-swap="outerHTML"
+>
+
+  {# Column 1: field #}
+  <div class="min-w-0">
+    <input
+      id="rename-input"
+      type="text"
+      name="title"
+      value="{{ conv.title or t('conversation_fallback_title').format(id=conv.id) }}"
+      minlength="1"
+      maxlength="120"
+      class="w-full px-3 py-2 rounded-lg bg-slate-800 text-slate-100 border border-slate-700 outline-none"
+      autofocus
+    />
+  </div>
+
+  {# Column 2: Right-aligned actions #}
+  <div class="justify-self-end flex items-center gap-1 shrink-0 whitespace-nowrap">
+    <button
+      type="submit"
+      class="px-2 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-xs"
+      title="{{ t('conversation_rename_save_title') }}"
+    >
+      {{ t("conversation_rename_save_label") }}
+    </button>
+
+    <button
+      type="button"
+      class="px-2 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs"
+      title="{{ t('conversation_rename_cancel_title') }}"
+      hx-get="{{ url_for('conversations_fragment') }}"
+      hx-target="#sidebar-conversations"
+      hx-swap="innerHTML"
+    >
+      {{ t("conversation_rename_cancel_label") }}
+    </button>
+  </div>
+</form>

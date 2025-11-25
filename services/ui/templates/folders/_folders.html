@@ -1,0 +1,25 @@
+<nav class="flex flex-col gap-1 overflow-y-auto overflow-x-hidden max-h-[24vh] pr-1">
+  {% if folders %}
+    {% for folder, doc_count in folders %}
+      <button
+        type="button"
+        class="w-full text-left px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800 transition flex items-center justify-between gap-2"
+        hx-get="{{ url_for('folder_modal', folder_id=folder.id) }}"
+        hx-target="#modal-area"
+        hx-swap="innerHTML"
+        data-folder-id="{{ folder.id }}"
+      >
+        <span class="truncate">{{ folder.name }}</span>
+
+        <span class="text-[11px] text-slate-500">
+          {{ t("folder_docs_count") 
+             | format(doc_count, ('s' if doc_count != 1 else '')) }}
+        </span>
+      </button>
+    {% endfor %}
+  {% else %}
+    <p class="text-xs text-slate-500 px-3 py-2">
+      {{ t("folder_empty_list") }}
+    </p>
+  {% endif %}
+</nav>

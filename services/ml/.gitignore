@@ -1,0 +1,13 @@
+# Python cache and environment files
+__pycache__/
+*.py[cod]
+.venv
+.env
+.git
+.secret-env
+
+# Pytest cache
+.pytest_cache/
+
+# Embed Model Downloaded
+model

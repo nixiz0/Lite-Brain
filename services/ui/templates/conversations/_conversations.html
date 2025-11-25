@@ -1,0 +1,58 @@
+<nav class="flex flex-col gap-1 overflow-y-auto overflow-x-hidden max-h-[50vh] pr-2">
+  {% for c in conversations %}
+  <div
+    id="conv-{{ c.id }}"
+    class="conv-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 w-full"
+    data-edit-url="{{ url_for('edit_conversation_title', conv_id=c.id) }}"
+    data-conv-id="{{ c.id }}"
+    draggable="true"
+  >
+
+    {# Title (column 1) #}
+    <a
+      hx-get="{{ url_for('switch_conversation', conv_id=c.id) }}"
+      hx-target="#messages"
+      hx-swap="innerHTML"
+      href="{{ url_for('switch_conversation', conv_id=c.id) }}"
+      class="min-w-0 px-3 py-2 rounded-lg transition truncate select-none cursor-text
+            {% if c.id == current_conversation_id %} bg-slate-800 text-white
+            {% else %} text-slate-200 hover:bg-slate-800 {% endif %}"
+      title="{{ t('conversation_title_hint') }}"
+    >
+      {{ c.title or t('conversation_fallback_short').format(id=c.id) }}
+    </a>
+
+    {# Actions (column 2, right-aligned) #}
+    <div class="justify-self-end flex items-center gap-1 shrink-0">
+      {# Rename #}
+      <button
+        class="w-7 h-7 grid place-content-center rounded-md hover:bg-slate-800 text-slate-300"
+        title="{{ t('conversation_rename_title') }}"
+        hx-get="{{ url_for('edit_conversation_title', conv_id=c.id) }}"
+        hx-target="#conv-{{ c.id }}"
+        hx-swap="innerHTML"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+        </svg>
+      </button>
+
+      {# Delete #}
+      <button
+        class="w-7 h-7 grid place-content-center rounded-md hover:bg-red-900/30 text-red-300"
+        title="{{ t('conversation_delete_title') }}"
+        hx-delete="{{ url_for('delete_conversation', conv_id=c.id) }}"
+        hx-target="#messages"
+        hx-swap="innerHTML"
+        hx-confirm="{{ t('conversation_delete_confirm').format(
+          title=c.title or t('conversation_fallback_short').format(id=c.id)
+        ) }}"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 3h6l1 1h4v2H4V4h4l1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</nav>

@@ -1,0 +1,168 @@
+{# ====== Sidebar ====== #}
+<aside
+  id="sidebar"
+  class="fixed inset-y-0 left-0 z-40 w-[85%] max-w-[320px] md:w-[280px]
+         bg-slate-900/80 backdrop-blur border-r border-slate-800
+         p-4 flex flex-col gap-6 md:gap-5 overflow-x-hidden
+         -translate-x-full md:translate-x-0 md:transition-transform md:duration-200"
+  aria-label="{{ t('sidebar_nav_aria') }}"
+>
+
+  {# Sidebar header #}
+  <div class="flex items-center justify-between">
+    <p class="flex items-center gap-2 text-white font-semibold">
+      <img class="w-8 h-8" src="{{ url_for('static', path='ressources/lite-brain-icon.png') }}" alt="" />
+      {{ t("sidebar_app_name") }}
+    </p>
+
+    <div class="flex items-center gap-2">
+      {# Collapse (desktop): visible when the sidebar is OPEN #}
+      <button
+        id="desktop-hide-btn"
+        class="hidden md:grid w-8 h-8 place-content-center rounded-lg bg-slate-800/80 border border-slate-700"
+        title="{{ t('sidebar_collapse_title') }}"
+        aria-label="{{ t('sidebar_collapse_aria') }}"
+      >
+        {# left chevron #}
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+        </svg>
+      </button>
+
+      {# Close (mobile) #}
+      <button
+        id="close-sidebar-btn"
+        class="md:hidden grid w-8 h-8 place-content-center rounded-lg bg-slate-800/80 border border-slate-700"
+        title="{{ t('sidebar_close_title') }}"
+        aria-label="{{ t('sidebar_close_aria') }}"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18.3 5.71L12 12l6.3 6.29-1.41 1.42L10.59 13.41 4.29 19.71 2.88 18.3 9.17 12 2.88 5.71 4.29 4.29 10.59 10.59 16.89 4.29z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  {# Sidebar content #}
+  <div class="flex-1 overflow-y-auto overflow-x-hidden mt-5 pr-1">
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs uppercase tracking-wider text-slate-400">
+          {{ t("sidebar_folders_label") }}
+        </div>
+
+        {# + New folder => created in the database and opens the modal #}
+        <form
+          hx-post="{{ url_for('create_folder') }}"
+          hx-target="#modal-area"
+          hx-swap="innerHTML"
+          hx-on::after-request="htmx.trigger('body','refresh-folders')"
+        >
+          <button
+            type="submit"
+            title="{{ t('sidebar_new_folder_title') }}"
+            class="w-7 h-7 rounded-md bg-red-700 hover:bg-red-600 text-white grid place-content-center text-sm"
+          >+</button>
+        </form>
+      </div>
+
+      {# List of folders (reloaded via HTML) #}
+      <div
+        id="sidebar-folders"
+        hx-get="{{ url_for('folders_fragment') }}"
+        hx-trigger="load, refresh-folders from:body"
+        hx-swap="innerHTML"
+      >
+        {# Fallback server rendering #}
+        {% include "folders/_folders.html" %}
+      </div>
+    </div>
+
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs uppercase tracking-wider text-slate-400">
+          {{ t("sidebar_conversations_label") }}
+        </div>
+
+        {# The "+" button does not create anything in the database until a prompt is issued. #}
+        <form
+          hx-post="{{ url_for('new_conversation_pending') }}"
+          hx-target="#messages"
+          hx-swap="innerHTML"
+          hx-include="#llm-tier-input"
+        >
+          <button
+            type="submit"
+            title="{{ t('sidebar_new_conversation_title') }}"
+            class="w-7 h-7 rounded-md bg-cyan-500 hover:bg-cyan-600 text-white grid place-content-center"
+          >+</button>
+        </form>
+      </div>
+
+      {# Container that dynamically reloads the list #}
+      <div
+        id="sidebar-conversations"
+        hx-get="{{ url_for('conversations_fragment') }}"
+        hx-trigger="load, refresh-conversations from:body"
+        hx-swap="innerHTML"
+      >
+
+      {# Server-rendered fallback (same layout as the fragment) #}
+        <nav class="flex flex-col gap-1 overflow-y-auto overflow-x-hidden max-h-[50vh] pr-2">
+          {% for c in conversations %}
+          <div
+            id="conv-{{ c.id }}"
+            class="conv-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 w-full"
+            data-edit-url="{{ url_for('edit_conversation_title', conv_id=c.id) }}"
+          >
+
+            {# Title #}
+            <a
+              hx-get="{{ url_for('switch_conversation', conv_id=c.id) }}"
+              hx-target="#messages"
+              hx-swap="innerHTML"
+              href="{{ url_for('switch_conversation', conv_id=c.id) }}"
+              class="min-w-0 px-3 py-2 rounded-lg transition truncate
+                     {% if c.id == current_conversation_id %} bg-slate-800 text-white
+                     {% else %} text-slate-200 hover:bg-slate-800 {% endif %}">
+              {{ c.title or t('conversation_fallback_short').format(id=c.id) }}
+            </a>
+
+            {# Actions (right) #}
+            <div class="justify-self-end flex items-center gap-1 shrink-0">
+              {# Rename #}
+              <button
+                class="w-7 h-7 grid place-content-center rounded-md hover:bg-slate-800 text-slate-300"
+                title="{{ t('conversation_rename_title') }}"
+                hx-get="{{ url_for('edit_conversation_title', conv_id=c.id) }}"
+                hx-target="#conv-{{ c.id }}"
+                hx-swap="innerHTML"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+                </svg>
+              </button>
+
+              {# Delete #}
+              <button
+                class="w-7 h-7 grid place-content-center rounded-md hover:bg-red-900/30 text-red-300"
+                title="{{ t('conversation_delete_title') }}"
+                hx-delete="{{ url_for('delete_conversation', conv_id=c.id) }}"
+                hx-target="#messages"
+                hx-swap="innerHTML"
+                hx-confirm="{{ t('conversation_delete_confirm').format(
+                  title=c.title or t('conversation_fallback_short').format(id=c.id)
+                ) }}"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 3h6l1 1h4v2H4V4h4l1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          {% endfor %}
+        </nav>
+      </div>
+    </div>
+  </div>
+</aside>

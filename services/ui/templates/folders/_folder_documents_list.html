@@ -1,0 +1,68 @@
+{% if documents %}
+  <ul class="space-y-2">
+    {% for doc in documents %}
+      <li class="border border-slate-800/80 rounded-lg px-3 py-2 flex items-center gap-3 justify-between">
+        <div class="flex flex-col flex-1 min-w-0">
+          <div class="text-sm font-medium text-slate-100 truncate">
+            {{ doc.name }}
+          </div>
+          <div class="text-[11px] text-slate-500">
+            {{ t("doc_added_on").format(date=doc.added_at.strftime("%d/%m/%Y à %H:%M")) }}
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          {# Open #}
+          <a
+            href="{{ url_for('download_document', doc_id=doc.id) }}"
+            class="text-xs px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-100"
+            target="_blank"
+          >
+            {{ t("doc_open") }}
+          </a>
+
+          {# Rename #}
+          <form
+            hx-post="{{ url_for('rename_document', doc_id=doc.id) }}"
+            hx-target="#folder-documents-list"
+            hx-swap="innerHTML"
+            class="flex items-center gap-1"
+          >
+            <input
+              type="text"
+              name="name"
+              value="{{ doc.name }}"
+              class="bg-slate-900/80 border border-slate-700 rounded px-2 py-1 text-xs max-w-[180px] focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-100"
+            />
+            <button
+              type="submit"
+              class="px-2 py-1 text-[11px] rounded-md bg-cyan-900 hover:bg-cyan-600 text-slate-100"
+            >
+              {{ t("doc_rename") }}
+            </button>
+          </form>
+
+          {# Delete #}
+          <form
+            hx-delete="{{ url_for('delete_document', doc_id=doc.id) }}"
+            hx-target="#folder-documents-list"
+            hx-swap="innerHTML"
+            hx-confirm="{{ t('doc_delete_confirm') }}"
+            hx-on::after-request="htmx.trigger('body','refresh-folders')"
+          >
+            <button
+              type="submit"
+              class="px-2 py-1 text-[11px] rounded-md bg-red-500/80 hover:bg-red-600 text-white"
+            >
+              {{ t("doc_delete") }}
+            </button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-sm text-slate-500">
+    {{ t("doc_none") }}
+  </p>
+{% endif %}

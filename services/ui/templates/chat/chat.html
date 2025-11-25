@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% set current_llm_tier = (effective_llm_tier if effective_llm_tier is defined and effective_llm_tier is not none else 'default') %}
+  {% set current_mode_preset = (conversation.mode_preset if conversation is defined and conversation.mode_preset is not none else 'free') %}
+
+  <div class="fixed px-4 pt-4">
+    {# Mode selector in the top left corner #}
+    <form
+      id="model-selector"
+      class="inline-flex items-center gap-2 text-xs text-slate-300"
+    >
+      <span class="ml-14 md:ml-1"></span>
+
+      <label class="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700 cursor-pointer text-[11px] transition">
+        <input
+          type="radio"
+          name="llm_tier"
+          value="default"
+          class="sr-only"
+          {% if current_llm_tier == 'default' %}checked{% endif %}
+        >
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span>{{ t("llm_tier_default") }}</span>
+      </label>
+
+      <label class="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700 cursor-pointer text-[11px] transition">
+        <input
+          type="radio"
+          name="llm_tier"
+          value="turbo"
+          class="sr-only"
+          {% if current_llm_tier == 'turbo' %}checked{% endif %}
+        >
+        <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+        <span>{{ t("llm_tier_turbo") }}</span>
+      </label>
+
+      {% if ultra_mode_active %}
+      <label class="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700 cursor-pointer text-[11px] transition">
+        <input
+          type="radio"
+          name="llm_tier"
+          value="ultra"
+          class="sr-only"
+          {% if current_llm_tier == 'ultra' %}checked{% endif %}
+        >
+        <span class="w-2 h-2 rounded-full bg-fuchsia-400"></span>
+        <span>{{ t("llm_tier_ultra") }}</span>
+      </label>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="max-w-4xl mx-auto p-6">
+    <div
+      id="messages"
+      class="flex flex-col gap-4"
+    >
+      {% include "chat/_messages.html" %}
+    </div>
+    <div id="bottom-sentinel" aria-hidden="true" class="h-px"></div>
+  </div>
+{% endblock %}
+
+
+{% block composer %}
+  <div
+    id="composer-bar"
+    class="max-w-4xl mx-auto px-4 py-5 sticky bottom-0 rounded-3xl bg-slate-950/80 backdrop-blur"
+  >
+
+    {# ===== MODE BAR (LLM presets) ===== #}
+    <div id="mode-wrapper" class="mt-5 mb-2">
+      <div class="flex items-center gap-2">
+        {# Deploy/Hide Arrow always visible #}
+        <button
+          type="button"
+          id="mode-toggle-btn"
+          class="inline-flex items-center justify-center w-6 h-6 ml-1 rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800 transition"
+          aria-expanded="true"
+          aria-controls="mode-bar"
+          title="{{ t('mode_bar_toggle_title') }}"
+        >
+          <svg
+            id="mode-toggle-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-4 h-4 transition-transform"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path fill-rule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </button>
+
+        {# Panel with pills (foldable) #}
+        <div
+          id="mode-bar"
+          class="flex-1 rounded-xl shadow-sm transition-all duration-200"
+        >
+          <div class="flex items-center gap-2 -mx-1 px-1">
+            {# Container for visible presets #}
+            <div id="mode-pills" class="flex items-center gap-2 overflow-x-hidden">
+              {# Free mode (default) #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="free"
+                data-label="{{ t('mode_free_label') }}"
+                data-description="{{ t('mode_free_desc') }}"
+              >
+                <span class="text-xs">✨</span>
+                <span>{{ t("mode_free_pill") }}</span>
+              </button>
+
+              {# Writing / Rewriting #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="write"
+                data-label="{{ t('mode_write_label') }}"
+                data-description="{{ t('mode_write_desc') }}"
+              >
+                <span class="text-xs">✍️</span>
+                <span>{{ t("mode_write_pill") }}</span>
+              </button>
+
+              {# Document synthesis & analysis (RAG / files) #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="docs"
+                data-label="{{ t('mode_docs_label') }}"
+                data-description="{{ t('mode_docs_desc') }}"
+              >
+                <span class="text-xs">📄</span>
+                <span>{{ t("mode_docs_pill") }}</span>
+              </button>
+
+              {# Brainstorming / ideas #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="brainstorm"
+                data-label="{{ t('mode_brainstorm_label') }}"
+                data-description="{{ t('mode_brainstorm_desc') }}"
+              >
+                <span class="text-xs">💡</span>
+                <span>{{ t("mode_brainstorm_pill") }}</span>
+              </button>
+
+              {# Code Programming assistance #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="code"
+                data-label="{{ t('mode_code_label') }}"
+                data-description="{{ t('mode_code_desc') }}"
+              >
+                <span class="text-xs">💻</span>
+                <span>{{ t("mode_code_pill") }}</span>
+              </button>
+
+              {# Guided learning #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="learn"
+                data-label="{{ t('mode_learn_label') }}"
+                data-description="{{ t('mode_learn_desc') }}"
+              >
+                <span class="text-xs">📚</span>
+                <span>{{ t("mode_learn_pill") }}</span>
+              </button>
+
+              {# Translation & style adaptation #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="translate"
+                data-label="{{ t('mode_translate_label') }}"
+                data-description="{{ t('mode_translate_desc') }}"
+              >
+                <span class="text-xs">🌍</span>
+                <span>{{ t("mode_translate_pill") }}</span>
+              </button>
+
+              {# Organization & planning #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="plan"
+                data-label="{{ t('mode_plan_label') }}"
+                data-description="{{ t('mode_plan_desc') }}"
+              >
+                <span class="text-xs">🗓️</span>
+                <span>{{ t("mode_plan_pill") }}</span>
+              </button>
+
+              {# Coaching/advice #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="coaching"
+                data-label="{{ t('mode_coaching_label') }}"
+                data-description="{{ t('mode_coaching_desc') }}"
+              >
+                <span class="text-xs">🧠</span>
+                <span>{{ t("mode_coaching_pill") }}</span>
+              </button>
+
+              {# Well-being / motivation #}
+              <button
+                type="button"
+                class="mode-pill whitespace-nowrap flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-300 hover:border-cyan-500 transition"
+                data-mode="wellbeing"
+                data-label="{{ t('mode_wellbeing_label') }}"
+                data-description="{{ t('mode_wellbeing_desc') }}"
+              >
+                <span class="text-xs">❤️</span>
+                <span>{{ t("mode_wellbeing_pill") }}</span>
+              </button>
+
+              {# ---- Add other modes later if needed ---- #}
+            </div>
+
+            {# "+" button (displayed only if there are hidden modes) #}
+            <button
+              type="button"
+              id="mode-more-btn"
+              class="hidden shrink-0 flex items-center gap-1 rounded-full border px-3 py-1.5 text-[11px] bg-slate-900/70 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200 transition"
+            >
+              <span class="text-xs">⋯</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== Docs sub-mode: RAG vs Full document ===== #}
+    <div
+      id="docs-options"
+      class="mb-2 ml-12 hidden text-[11px] text-slate-200"
+    >
+      <span class="mr-2 text-slate-400">{{ t("docs_options_label") }}</span>
+
+      <button
+        type="button"
+        class="doc-mode-pill inline-flex items-center gap-1 rounded-full border border-cyan-500 bg-slate-900/70 px-2.5 py-1 text-[11px] text-slate-100"
+        data-doc-mode="rag"
+      >
+        🔍 {{ t("docs_mode_rag") }}
+      </button>
+
+      <button
+        type="button"
+        class="doc-mode-pill inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/40 px-2.5 py-1 text-[11px] text-slate-300 hover:border-cyan-500"
+        data-doc-mode="full"
+      >
+        📚 {{ t("docs_mode_full") }}
+      </button>
+
+      <span class="ml-2 text-slate-500">
+        {{ t("docs_mode_hint") }}
+      </span>
+    </div>
+
+    {# Modal of additional modes #}
+    <div
+      id="mode-more-modal"
+      class="fixed inset-0 z-40 hidden items-end justify-center sm:items-center"
+    >
+      <div class="absolute inset-0 bg-black/60" data-modal-close></div>
+
+      <div id="mode-more-panel" class="relative z-10 w-full max-w-sm mx-auto mb-16 sm:mb-0 rounded-xl border border-slate-700 bg-slate-900/95 p-4 shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-medium text-slate-100">
+            {{ t("mode_more_title") }}
+          </h2>
+          <button
+            type="button"
+            class="text-slate-400 hover:text-slate-200 text-xs"
+            data-modal-close
+          >
+            {{ t("mode_more_close") }}
+          </button>
+        </div>
+
+        <div
+          id="mode-more-list"
+          class="flex flex-wrap gap-2"
+        >
+          {# The hidden modes will be cloned here in JS #}
+        </div>
+      </div>
+    </div>
+
+
+    {# ===== User Prompt Input & Summary selected sources ===== #}
+    <div id="source-selection-summary" class="mb-2 text-sm flex flex-wrap gap-2 items-center"></div>
+
+    <div
+      id="full-doc-progress"
+      class="hidden mb-2 ml-12 mr-4"
+    >
+      <div class="flex items-center justify-between text-[11px] text-slate-300 mb-1">
+        <span>{{ t("full_doc_progress_title") }}</span>
+        <span id="full-doc-progress-label" class="text-slate-400">0 / 0</span>
+      </div>
+      <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+        <div
+          id="full-doc-progress-bar"
+          class="h-full w-0 bg-cyan-500 transition-[width] duration-200"
+          style="width: 0%;"
+        ></div>
+      </div>
+    </div>
+
+    <form
+      id="composer-form"
+      class="flex items-end gap-2"
+    >
+      <input
+        type="hidden"
+        name="llm_tier"
+        id="llm-tier-input"
+        value="{{ current_llm_tier }}"
+      >
+
+      {# Preset mode #}
+      <input
+        type="hidden"
+        name="mode_preset"
+        id="mode-preset-input"
+        value="{{ current_mode_preset }}"
+      >
+
+      {# Docs sub-mode (RAG / Full) #}
+      <input
+        type="hidden"
+        name="doc_mode"
+        id="doc-mode-input"
+        value="rag"
+      >
+
+      {# Enables streaming mode on the backend #}
+      <input
+        type="hidden"
+        name="stream_ui"
+        value="true"
+      >
+
+      {# + button to select folders/documents #}
+      <button
+        type="button"
+        class="w-9 h-9 mb-0.5 rounded-lg border border-slate-700 bg-slate-800/80 flex items-center justify-center
+              hover:bg-slate-700 hover:border-cyan-500 transition"
+        title="{{ t('source_selector_button_title') }}"
+        hx-get="/modal/source-selector"
+        hx-target="#modal-area"
+        hx-swap="innerHTML"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M10 4H4c-1.1 0-2 .9-2 2v12.01C2 19.55 2.45 20 2.99 20H21c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-9l-2-2z"/>
+          <path d="M12 9v3H9v2h3v3h2v-3h3v-2h-3V9z" />
+        </svg>
+      </button>
+
+      <textarea
+        name="user_input"
+        rows="1"
+        required
+        placeholder="{{ t('composer_placeholder') }}"
+        data-autoresize="true"
+        class="flex-1 max-h-[250px] resize-none bg-slate-800 text-slate-100 placeholder:text-slate-500
+              px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-cyan-500 transition overflow-y-auto"
+      ></textarea>
+
+      <button
+        type="submit"
+        id="composer-send-btn"
+        class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition"
+        data-label-send="{{ t('composer_send') }}"
+        data-label-stop="{{ t('composer_stop') }}"
+      >
+        {{ t("composer_send") }}
+      </button>
+    </form>
+
+    <div class="flex items-center mt-2 ml-12">
+      <span
+        id="mode-active-label"
+        class="text-[11px] text-slate-50 font-medium"
+      ><!-- JS Preset Label Here --></span>
+
+      <span class="text-[11px] text-slate-50 font-medium mx-1">:</span>
+
+      <span
+        id="mode-description"
+        class="text-[11px] text-slate-300"
+      ><!-- JS Preset Description Here --></span>
+    </div>
+  </div>
+{% endblock %}

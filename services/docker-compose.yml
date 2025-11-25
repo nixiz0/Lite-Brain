@@ -1,0 +1,113 @@
+services:
+  ui:
+    restart: unless-stopped
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    image: litebrain-ui:1.0
+    container_name: ui
+    depends_on:
+      ml:
+        condition: service_started
+      vector-db:
+        condition: service_started
+      llm-server:
+        condition: service_started
+    environment:
+      - LANGUAGE=${LANGUAGE}
+      - DATABASE_URL=sqlite:////app/data/app.sqlite
+      - QDRANT_URL=http://vector-db:6333
+      - OLLAMA_URL=http://llm-server:11434
+      - ML_API_URL=http://ml:9005
+      - ULTRA_MODE_ACTIVE=${ULTRA_MODE_ACTIVE}
+      - LLM_HISTORY_MAX_MESSAGES=${LLM_HISTORY_MAX_MESSAGES}
+      - CHUNK_SIZE=${CHUNK_SIZE}
+      - OVERLAP=${OVERLAP}
+      - TOP_K_HYBRID=${TOP_K_HYBRID}
+      - TOP_K_MMR=${TOP_K_MMR}
+      - TOP_K_RERANK=${TOP_K_RERANK}
+      - MMR_LAMBDA=${MMR_LAMBDA}
+      - MAX_FULL_DOC_CHUNKS=${MAX_FULL_DOC_CHUNKS}
+      - FULL_DOC_CHUNKS_PER_BATCH=${FULL_DOC_CHUNKS_PER_BATCH}
+      - MIN_CHAR_PER_PAGE=${MIN_CHAR_PER_PAGE}
+      - AVG_MIN_CHARS=${AVG_MIN_CHARS}
+      - BLANK_PAGE_THRESHOLD=${BLANK_PAGE_THRESHOLD}
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - data:/app/data
+    ports:
+      - "9010:9010"
+    networks:
+      - lite_brain
+
+  ml:
+    restart: unless-stopped
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+      args:
+        DEVICE: ${DEVICE}
+    image: litebrain-ml:1.0
+    container_name: ml
+    environment:
+      - DEVICE=${DEVICE}
+      - HF_TOKEN=
+      - API_KEY=
+      - EMB_MAX_WORKERS=${EMB_MAX_WORKERS}
+      - EMB_MODEL_NAME=BAAI/bge-m3
+      - RERANK_MODEL_NAME=BAAI/bge-reranker-v2-m3
+      - MODEL_REVISION=main
+      - OCR_CONCURRENCY_LIMIT=${OCR_CONCURRENCY_LIMIT}
+      - OCR_MAX_PAGES=${OCR_MAX_PAGES}
+      - OCR_ASSUME_STRAIGHT=${OCR_ASSUME_STRAIGHT}
+      - TORCH_NUM_THREADS=${TORCH_NUM_THREADS}
+      - TORCH_NUM_INTEROP=${TORCH_NUM_INTEROP}
+      - OCR_PDF_DPI=${OCR_PDF_DPI}
+      - OCR_BATCH_PAGES=${OCR_BATCH_PAGES}
+      - SEM_TIMEOUT_S=${SEM_TIMEOUT_S}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB}
+      - PPTX_MAX_SLIDES=${PPTX_MAX_SLIDES}
+    volumes:
+      - hf_models:/app/model
+    ports:
+      - "9005:9005"
+    networks:
+      - lite_brain
+    gpus: all
+
+  vector-db:
+    restart: unless-stopped
+    image: qdrant/qdrant:v1.13.5
+    container_name: vector-db
+    volumes:
+      - vector_db_storage:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    networks:
+      - lite_brain
+
+  llm-server:
+    image: ollama/ollama:latest
+    container_name: llm-server
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH}
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - lite_brain
+    gpus: all
+
+networks:
+  lite_brain:
+    driver: bridge
+
+volumes:
+  data:
+  hf_models:
+  vector_db_storage:
+  ollama_data:

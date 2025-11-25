@@ -1,0 +1,83 @@
+<div id="source-selection-summary" class="mb-2 text-sm flex flex-wrap items-center gap-2">
+  {# Inputs hidden – toujours présents pour que /message les reçoive #}
+  <input type="hidden" name="selected_folder_ids" value="{{ selected_folder_ids_str }}">
+  <input type="hidden" name="selected_document_ids" value="{{ selected_document_ids_str }}">
+
+  {% if selected_folders or selected_documents %}
+    {# Button to reset all #}
+    <button
+      type="button"
+      class="w-6 h-6 rounded-full flex items-center justify-center ml-1 border border-red-700 text-slate-300 hover:bg-red-800 hover:text-white mr-1"
+      title="{{ t('source_summary_clear_title') }}"
+      hx-post="/modal/source-selector/apply"
+      hx-target="#source-selection-summary"
+      hx-swap="outerHTML"
+      hx-vals='{"reset": "1"}'
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none">
+        <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <span class="text-slate-400">{{ t("source_summary_label") }}</span>
+
+    {# --- Selected folders --- #}
+    {% for f in selected_folders %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900 text-slate-100 text-xs border border-amber-500/40">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-amber-300" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M10 4H4c-1.1 0-2 .9-2 2v12.01C2 19.55 2.45 20 2.99 20H21c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-9l-2-2z"/>
+        </svg>
+        <span class="max-w-[150px] truncate">{{ f.name }}</span>
+        <span class="text-[10px] uppercase tracking-wide text-amber-300/80">
+          {{ t("source_summary_folder_badge") }}
+        </span>
+        <button
+          type="button"
+          class="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center hover:bg-slate-800 text-slate-300"
+          title="{{ t('source_summary_folder_remove_title') }}"
+          hx-post="/modal/source-selector/remove"
+          hx-target="#source-selection-summary"
+          hx-swap="outerHTML"
+          hx-include="#source-selection-summary"
+          hx-vals='{"remove_folder_id": "{{ f.id }}"}'
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none">
+            <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </span>
+    {% endfor %}
+
+    {# IDs of selected folders #}
+    {% set folder_ids = selected_folders | map(attribute='id') | list %}
+
+    {# --- Selected documents whose folder is NOT selected --- #}
+    {% for d in selected_documents %}
+      {% if not d.folder_id or d.folder_id not in folder_ids %}
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-slate-100 text-xs border border-slate-600">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-cyan-300" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 2h9l5 5v13c0 1.1-.9 2-2 2H6a2 2 0 0 1-2-2V4c0-1.1.9-2 2-2z"/>
+          </svg>
+          <span class="max-w-[150px] truncate">{{ d.name }}</span>
+          <span class="text-[10px] uppercase tracking-wide text-cyan-300/80">
+            {{ t("source_summary_doc_badge") }}
+          </span>
+          <button
+            type="button"
+            class="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center hover:bg-slate-700 text-slate-300"
+            title="{{ t('source_summary_doc_remove_title') }}"
+            hx-post="/modal/source-selector/remove"
+            hx-target="#source-selection-summary"
+            hx-swap="outerHTML"
+            hx-include="#source-selection-summary"
+            hx-vals='{"remove_document_id": "{{ d.id }}"}'
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none">
+              <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </span>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+</div>

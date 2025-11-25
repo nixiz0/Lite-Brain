@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE }}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="{{ url_for('static', path='ressources/lite-brain-icon.png') }}" type="image/x-icon">
+    <title>{{ t("app_title") }}</title>
+
+    {# Tailwind #}
+    <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}" />
+
+    {# HTMX #}
+    <script src="{{ url_for('static', path='js/htmx/2.0.2/htmx.min.js') }}"></script>
+
+    <style>
+      .prose pre { padding: 0; background: transparent; }
+      .prose pre > code { display:block; padding: 1rem; }
+      .prose code:not(pre code) {
+        background: rgba(148,163,184,.15);
+        padding:.15rem .35rem; border-radius:.375rem;
+      }
+      .prose :where(p, pre, ul, ol, blockquote, table):last-child { margin-bottom: 0; }
+      .code-actions {
+        position:absolute; top:.5rem; right:.5rem; display:flex; gap:.25rem;
+      }
+      .code-card { position:relative; }
+
+      .htmx-indicator {
+        display: none;
+      }
+      .htmx-indicator.htmx-request {
+        display: flex;
+      }
+    </style>
+  </head>
+
+  <body class="bg-slate-950 text-slate-100">
+    {# Overlay LLM bootstrap / Model download #}
+    <div
+      id="llm-bootstrap-overlay"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm hidden"
+    >
+      <div class="w-full max-w-md mx-4 rounded-2xl bg-slate-900 border border-slate-700 shadow-xl p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-full border-2 border-sky-400/60 border-t-transparent animate-spin"></div>
+          <div>
+            <h2 class="text-lg font-semibold">{{ t("bootstrap_overlay_title") }}</h2>
+            <p id="llm-bootstrap-message" class="text-sm text-slate-300">
+              {{ t("bootstrap_overlay_default_message") }}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs text-slate-400 mb-1">
+            <span id="llm-bootstrap-model-label">{{ t("bootstrap_initializing") }}</span>
+            <span id="llm-bootstrap-progress-label">0%</span>
+          </div>
+          <div class="h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div
+              id="llm-bootstrap-progress-bar"
+              class="h-full rounded-full bg-sky-500 transition-all duration-300"
+              style="width: 0%;"
+            ></div>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-500">
+          {{ t("bootstrap_overlay_hint") }}
+        </p>
+      </div>
+    </div>
+
+    {# Hamburger button (mobile) #}
+    <button
+      id="open-sidebar-btn"
+      class="md:hidden fixed top-4 left-4 z-40 w-10 h-10 rounded-xl bg-slate-800/80 border border-slate-700
+             grid place-content-center shadow"
+      aria-label="{{ t('sidebar_open_aria') }}"
+      title="{{ t('sidebar_open_title') }}"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
+      </svg>
+    </button>
+
+    {# Floating button (desktop) to reopen when the sidebar is collapsed #}
+    <button
+      id="desktop-show-btn"
+      class="hidden md:grid fixed top-4 left-4 z-40 w-9 h-9 rounded-lg bg-slate-800/80 border border-slate-700 place-content-center"
+      title="{{ t('sidebar_show_title') }}"
+      aria-label="{{ t('sidebar_show_aria') }}"
+    >
+      {# straight rafter #}
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M10 6l-1.41 1.41L13.17 12l-4.58 4.59L10 18l6-6z"/>
+      </svg>
+    </button>
+
+    {# Overlay (mobile) #}
+    <div id="sidebar-overlay"
+         class="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 hidden opacity-0 transition-opacity duration-200"></div>
+
+    {# Sidebar #}
+    {% include "components/sidebar.html" %}
+
+    {# Main column #}
+    <main id="main" class="min-h-dvh md:ml-[280px] transition-[margin] duration-200 flex flex-col">
+      <section id="content" class="min-h-0 flex-1 overflow-y-auto">
+        {% block content %}{% endblock %}
+      </section>
+    </main>
+
+    {# Fixed prompt bar #}
+    <div
+      id="composer-bar"
+      class="fixed bottom-0 inset-x-0 md:left-[280px] transition-[left] duration-200"
+    >
+      {% block composer %}{% endblock %}
+    </div>
+
+    {# Area where HTMLX injects modals #}
+    <div id="modal-area"></div>
+
+    <script src="http://localhost:35729/livereload.js?snipver=1"></script>
+    <script>
+      window.__I18N_BOOTSTRAP = {
+        lang: "{{ LANGUAGE }}",
+        catalog: {{ i18n_js | tojson | safe }},
+      };
+    </script>
+    <script type="module" src="{{ url_for('static', path='js/app.js') }}"></script>
+  </body>
+</html>

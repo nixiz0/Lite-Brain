@@ -1,0 +1,56 @@
+# Exclude Specific Files/Folders
+start-api.bat
+start-api.sh
+model
+
+# Exclude dev/test folders
+.pytest_cache/
+__pycache__/
+.git
+.gitignore
+.github
+tests/
+*.pyc
+*.pyo
+*.pyd
+
+# Exclude files and folders from local config
+.venv
+.env
+.env.*
+.secret-env
+*.local
+*.envrc
+
+# OS/filesystem trash
+.DS_Store
+Thumbs.db
+
+# Docs, tools, editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker files not useful for the final image
+docker-compose*.yml
+Dockerfile.*
+README*
+LICENSE
+
+# Build/coverage artefacts
+build/
+dist/
+*.egg-info
+.coverage
+coverage.xml
+htmlcov/
+
+# Keys, secrets, dumps
+*.pem
+*.key
+*.crt
+*.db
+*.sqlite3
+*.dump
+*.bak

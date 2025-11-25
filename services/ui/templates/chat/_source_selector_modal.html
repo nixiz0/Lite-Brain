@@ -1,0 +1,134 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+  {# overlay #}
+  <div
+    class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+    hx-get="/modal/empty"
+    hx-target="#modal-area"
+    hx-swap="innerHTML"
+  ></div>
+
+  {# modal #}
+  <div class="relative z-10 w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl bg-slate-900/95 border border-slate-700 
+              rounded-2xl shadow-2xl max-h-[80vh] flex flex-col">
+
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+      <div class="flex flex-col">
+        <h2 class="text-sm font-semibold text-slate-100">
+          {{ t("source_modal_title") }}
+        </h2>
+        <p class="text-xs text-slate-400 mt-0.5">
+          {{ t("source_modal_subtitle") }}
+        </p>
+      </div>
+      <button
+        class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-800"
+        hx-get="/modal/empty"
+        hx-target="#modal-area"
+        hx-swap="innerHTML"
+        title="{{ t('source_modal_close_title') }}"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <form
+      hx-post="/modal/source-selector/apply"
+      hx-target="#source-selection-summary"
+      hx-swap="outerHTML"
+      class="flex-1 overflow-y-auto px-4 py-3 space-y-4"
+    >
+      {% if folders %}
+        <div class="space-y-3">
+          {% for folder, doc_count in folders %}
+            <div class="border border-slate-800 rounded-xl bg-slate-900/60 overflow-hidden">
+              <div class="flex items-start justify-between gap-3 px-3 py-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M10 4H4c-1.1 0-2 .9-2 2v12.01C2 19.55 2.45 20 2.99 20H21c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-9l-2-2z"/>
+                    </svg>
+                  </div>
+                  <div class="flex flex-col">
+                    <label class="flex items-center gap-2 text-sm font-medium text-slate-100 cursor-pointer">
+                      {# checkbox folder #}
+                      <input
+                        type="checkbox"
+                        name="folder_ids"
+                        value="{{ folder.id }}"
+                        class="rounded border-slate-600 bg-slate-900 text-cyan-500"
+                        data-folder-checkbox="true"
+                        data-folder-id="{{ folder.id }}"
+                      />
+                      <span>{{ folder.name }}</span>
+                    </label>
+                    <span class="text-xs text-slate-400">
+                      {{ t("source_folder_label").format(
+                        count=doc_count,
+                        suffix=('s' if doc_count != 1 else '')
+                      ) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {% if folder.documents %}
+                <div class="px-3 pb-2 pt-1 border-t border-slate-800 bg-slate-900/50 space-y-1">
+                  <p class="text-[11px] uppercase tracking-wide text-slate-500 mb-1">
+                    {{ t("source_folder_docs_in_folder") }}
+                  </p>
+                  {% for doc in folder.documents %}
+                    <label class="flex items-center justify-between gap-2 text-xs text-slate-200 cursor-pointer py-0.5">
+                      <div class="flex items-center gap-2 min-w-0">
+                        {# checkbox document #}
+                        <input
+                          type="checkbox"
+                          name="document_ids"
+                          value="{{ doc.id }}"
+                          class="rounded border-slate-600 bg-slate-900 text-cyan-500 flex-shrink-0"
+                          data-doc-checkbox="true"
+                          data-folder-id="{{ folder.id }}"
+                        />
+                        <div class="flex items-center gap-1 min-w-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 2h9l5 5v13c0 1.1-.9 2-2 2H6a2 2 0 0 1-2-2V4c0-1.1.9-2 2-2z"/>
+                          </svg>
+                          <span class="truncate max-w-[220px] md:max-w-[280px]">{{ doc.name }}</span>
+                        </div>
+                      </div>
+                    </label>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-400">
+          {{ t("source_modal_empty") }}
+        </p>
+      {% endif %}
+
+      <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-end">
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800"
+            hx-get="/modal/empty"
+            hx-target="#modal-area"
+            hx-swap="innerHTML"
+          >
+            {{ t("source_modal_cancel") }}
+          </button>
+          <button
+            type="submit"
+            class="px-3 py-1.5 text-xs rounded-lg bg-cyan-500 text-white font-medium hover:bg-cyan-600"
+          >
+            {{ t("source_modal_apply") }}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
