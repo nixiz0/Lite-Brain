@@ -111,3 +111,9 @@ For building the **LiteBrainLauncher.exe** i use *pyinstaller* and run the comma
 ## 🧩 **Architecture Schema**
 
 ![Architecture Schema](services/Lite-Brain-architecture-schema.png)
+
+---
+
+## Author
+
+- [@nixiz0](https://github.com/nixiz0)
