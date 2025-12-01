@@ -333,6 +333,109 @@ def get_compose_cmd():
     )
 
 
+def get_compose_down_cmd():
+    """
+    Same detection logic as get_compose_cmd, but for 'down'
+    (stop and remove containers and network).
+    """
+    compose_file = None
+    if COMPOSE_FILE_YML.exists():
+        compose_file = COMPOSE_FILE_YML
+    elif COMPOSE_FILE_YAML.exists():
+        compose_file = COMPOSE_FILE_YAML
+
+    if compose_file is None:
+        # You might want to continue the uninstall even without the compose file,
+        # so we raise a clear message.
+        raise FileNotFoundError(
+            "docker-compose.yml or docker-compose.yaml not found "
+            f"in {ROOT_DIR}"
+        )
+
+    test_cmds = ["docker compose version", "docker-compose --version"]
+    used = None
+    for cmd in test_cmds:
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if r.returncode == 0:
+            used = cmd.split()[0]
+            break
+
+    if used is None:
+        raise RuntimeError(
+            "'docker compose' or 'docker-compose' not found. "
+            "Verify Docker installation."
+        )
+
+    base_cmd = "docker compose" if used == "docker" else "docker-compose"
+
+    return (
+        f'{base_cmd} --env-file "{ENV_TARGET}" '
+        f'-f "{compose_file}" -p {PROJECT_NAME} down'
+    )
+
+
+def uninstall_lite_brain():
+    """
+    Uninstall Lite Brain:
+    - docker compose down (stack only, KEEP volumes)
+    - docker rmi litebrain-ui:1.0 litebrain-ml:1.0
+    - delete REPO_DIR (~/.lite_brain/Lite-Brain)
+    Returns a list of error messages (empty if all good).
+    """
+    errors = []
+
+    # 1) Try to stop and remove the stack
+    try:
+        check_docker()
+        try:
+            down_cmd = get_compose_down_cmd()
+            result = subprocess.run(
+                down_cmd,
+                shell=True,
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                errors.append(
+                    f"docker compose down failed:\n{result.stderr or result.stdout}"
+                )
+        except FileNotFoundError as e:
+            # No `compose file` command → we don't block the rest of the process, but we log
+            errors.append(str(e))
+        except Exception as e:
+            errors.append(str(e))
+    except Exception as e:
+        # Docker not available → we'll continue anyway to delete the files
+        errors.append(f"Docker not available: {e}")
+
+    # 2) Try to remove images (best-effort)
+    images = ["litebrain-ui:1.0", "litebrain-ml:1.0"]
+    for img in images:
+        try:
+            result = subprocess.run(
+                f"docker rmi {img}",
+                shell=True,
+                capture_output=True,
+                text=True
+            )
+            # It's not a problem if the image doesn't exist (code != 0)
+            if result.returncode != 0 and "No such image" not in (result.stderr or ""):
+                errors.append(
+                    f"Failed to remove image {img}:\n{result.stderr or result.stdout}"
+                )
+        except Exception as e:
+            errors.append(f"Error removing image {img}: {e}")
+
+    # 3) Delete local repo folder (~/.lite_brain/Lite-Brain)
+    try:
+        if REPO_DIR.exists():
+            shutil.rmtree(REPO_DIR)
+    except Exception as e:
+        errors.append(f"Failed to remove folder {REPO_DIR}:\n{e}")
+
+    return errors
+
+
 def launch_stack_in_external_terminal():
     """
     Starts the docker compose stack.
@@ -345,9 +448,9 @@ def launch_stack_in_external_terminal():
     system = platform.system()
     root_str = str(ROOT_DIR)
 
-    # Important little debug: shows where we are and what we're going to launch
+    # Important little info: shows where we are and what we're going to launch
     messagebox.showinfo(
-        "Debug Lite-Brain",
+        "[Info] Lite-Brain",
         f"ROOT_DIR = {root_str}\n\nCommand executed:\n{cmd}"
     )
 
@@ -508,6 +611,18 @@ class EnvConfiguratorApp(tk.Tk):
                 ),
                 "advanced_ui": "Advanced UI options",
                 "advanced_ml": "Advanced ML options",
+                "btn_uninstall": "🗑 Uninstall Lite Brain",
+                "uninstall_confirm_title": "Uninstall Lite Brain",
+                "uninstall_confirm_body": (
+                    "This will:\n"
+                    "• Stop and remove the Lite Brain Docker stack (containers, network)\n"
+                    "• Remove Docker images: litebrain-ui:1.0, litebrain-ml:1.0\n"
+                    "• Delete the local folder:\n{path}\n\n"
+                    "Are you sure you want to continue?"
+                ),
+                "uninstall_done_title": "Uninstall complete",
+                "uninstall_done_body": "Lite Brain has been removed from this machine.",
+                "uninstall_error_title": "Uninstall – some errors occurred",
             },
             "fr": {
                 "window_title": "Lanceur Lite Brain",
@@ -535,6 +650,18 @@ class EnvConfiguratorApp(tk.Tk):
                 ),
                 "advanced_ui": "Options UI avancées",
                 "advanced_ml": "Options ML avancées",
+                "btn_uninstall": "🗑 Désinstaller Lite Brain",
+                "uninstall_confirm_title": "Désinstaller Lite Brain",
+                "uninstall_confirm_body": (
+                    "Cela va :\n"
+                    "• Arrêter et supprimer la stack Docker Lite Brain (conteneurs, réseau)\n"
+                    "• Supprimer les images Docker : litebrain-ui:1.0, litebrain-ml:1.0\n"
+                    "• Supprimer le dossier local :\n{path}\n\n"
+                    "Êtes-vous sûr de vouloir continuer ?"
+                ),
+                "uninstall_done_title": "Désinstallation terminée",
+                "uninstall_done_body": "Lite Brain a été supprimé de cette machine.",
+                "uninstall_error_title": "Désinstallation – des erreurs sont survenues",
             },
         }
 
@@ -727,6 +854,7 @@ class EnvConfiguratorApp(tk.Tk):
 
         self.btn_launch = None
         self.btn_quit = None
+        self.btn_uninstall = None
         self._pulse_state = 0
 
         # UI references for language update
@@ -747,6 +875,37 @@ class EnvConfiguratorApp(tk.Tk):
 
         # Launch button animation
         self.after(600, self._pulse_launch_button)
+
+    def on_uninstall(self):
+        """
+        Ask confirmation, then:
+        - docker compose down -v
+        - remove Docker images
+        - delete REPO_DIR
+        """
+        path_str = str(REPO_DIR)
+        if not messagebox.askyesno(
+            self.tr("uninstall_confirm_title"),
+            self.tr("uninstall_confirm_body", path=path_str)
+        ):
+            return  # user cancelled
+
+        errors = uninstall_lite_brain()
+
+        if errors:
+            messagebox.showerror(
+                self.tr("uninstall_error_title"),
+                "\n\n".join(errors)
+            )
+        else:
+            messagebox.showinfo(
+                self.tr("uninstall_done_title"),
+                self.tr("uninstall_done_body")
+            )
+
+        # In any case, the launcher is closed after the attempt.
+        self.destroy()
+
 
     # ====== i18n helpers ======
     def tr(self, key, **kwargs):
@@ -1410,6 +1569,34 @@ class EnvConfiguratorApp(tk.Tk):
         )
         self.btn_launch.pack(side="left", padx=6, ipady=2)
 
+        # Allow background color change for ttk buttons
+        style = ttk.Style()
+        style.theme_use("clam")
+
+        # Style for uninstall btn
+        style.configure(
+            "Uninstall.TButton",
+            background="#80120d",
+            foreground="white",
+            padding=6,
+        )
+        style.map(
+            "Uninstall.TButton",
+            background=[
+                ("active", "#a81812"),
+                ("pressed", "#6a0e0a"),
+            ]
+        )
+
+        # Uninstall button (below the other two)
+        self.btn_uninstall = ttk.Button(
+            btn_frame,
+            text=self.tr("btn_uninstall"),
+            command=self.on_uninstall,
+            style="Uninstall.TButton",
+        )
+        self.btn_uninstall.pack(anchor="center", pady=(8, 0), ipady=2)
+
     def _update_language_buttons(self):
         """
         Updates the visual style of the EN / FR buttons.
@@ -1476,6 +1663,10 @@ class EnvConfiguratorApp(tk.Tk):
             lbl.configure(text=self.tr("advanced_ui"))
         for lbl in self.advanced_labels_ml:
             lbl.configure(text=self.tr("advanced_ml"))
+
+        # Bouton Uninstall
+        if getattr(self, "btn_uninstall", None) is not None:
+            self.btn_uninstall.configure(text=self.tr("btn_uninstall"))
 
         # Tooltips update automatically because they call
         # get_param_help_text() every time they are displayed.

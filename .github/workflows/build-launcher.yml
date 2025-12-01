@@ -5,13 +5,13 @@ on:
     branches:
       - "prod"
     paths:
-      - ".github/workflows/build-launcher.yml"   # only if this file changes
+      - ".github/workflows/build-launcher.yml"   # only if this file changes 'versions'
 
 permissions:
   contents: write   # necessary to create a Release
 
 env:
-  VERSION: "1.0.0"   # Change here to change the entire version.
+  VERSION: "1.1.0"   # Change here to change the entire version.
 
 jobs:
   build:

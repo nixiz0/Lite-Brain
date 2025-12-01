@@ -1,2 +1,7 @@
 # Env file
 .env
+
+# Build Launcher files
+dist
+build 
+LiteBrainLauncher.spec
