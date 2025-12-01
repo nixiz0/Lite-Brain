@@ -1,11 +1,11 @@
-name: Build LiteBrain Launcher
+name: Build Lite-Brain Launcher
 
 on:
   push:
     branches:
       - "prod"
     paths:
-      - ".github/workflows/build-launcher.yml"   # only if this file changes (version)
+      - ".github/workflows/build-launcher.yml"   # only if this file changes
 
 permissions:
   contents: write   # necessary to create a Release
