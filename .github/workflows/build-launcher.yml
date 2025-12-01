@@ -1,4 +1,4 @@
-name: Build Lite-Brain Launcher
+name: Build LiteBrain Launcher
 
 on:
   push:

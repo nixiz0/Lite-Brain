@@ -335,36 +335,43 @@ def get_compose_cmd():
 
 def launch_stack_in_external_terminal():
     """
-    Starts the docker compose stack inside an external terminal window.
+    Starts the docker compose stack.
     - Validates Docker
     - Builds compose command
-    - Opens the terminal depending on OS
-    Terminal auto-closes when compose finishes.
+    - Runs it in a visible terminal (Windows/macOS/Linux)
     """
     check_docker()
     cmd = get_compose_cmd()
     system = platform.system()
     root_str = str(ROOT_DIR)
 
+    # Important little debug: shows where we are and what we're going to launch
+    messagebox.showinfo(
+        "Debug Lite-Brain",
+        f"ROOT_DIR = {root_str}\n\nCommand executed:\n{cmd}"
+    )
+
     if system == "Windows":
-        # Use `cd /d` to manage disk changes (C: -> D: etc.)
-        win_cmd = f'start "" cmd /c "cd /d \\"{root_str}\\" && {cmd}"'
+        # We keep the window open with /K to see the errors
+        base_cmd = f'cd /d "{root_str}" && {cmd}'
+        win_cmd = f'start "" cmd /K "{base_cmd}"'
         subprocess.Popen(win_cmd, shell=True)
 
     elif system == "Darwin":  # macOS
         apple_script = f'''
         tell application "Terminal"
             activate
-            do script "cd {shlex.quote(root_str)} && {cmd}; exit"
+            do script "cd {shlex.quote(root_str)} && {cmd}"
         end tell
         '''
         subprocess.Popen(["osascript", "-e", apple_script])
 
     else:  # Linux
+        # We try to open it in an interactive terminal; otherwise, we launch it in the background.
         term_cmds = [
-            ["x-terminal-emulator", "-e", f"bash -lc 'cd {shlex.quote(root_str)} && {cmd}; exit'"],
-            ["gnome-terminal", "--", "bash", "-lc", f"cd {shlex.quote(root_str)} && {cmd}; exit"],
-            ["konsole", "-e", f"bash -lc 'cd {shlex.quote(root_str)} && {cmd}; exit'"],
+            ["x-terminal-emulator", "-e", f"bash -lc 'cd {shlex.quote(root_str)} && {cmd}; exec bash'"],
+            ["gnome-terminal", "--", "bash", "-lc", f"cd {shlex.quote(root_str)} && {cmd}; exec bash"],
+            ["konsole", "-e", f"bash -lc 'cd {shlex.quote(root_str)} && {cmd}; exec bash'"],
         ]
 
         for tcmd in term_cmds:
@@ -374,9 +381,8 @@ def launch_stack_in_external_terminal():
             except FileNotFoundError:
                 continue
 
-        # Fallback: run in background if no terminal emulator is available
-        subprocess.Popen(f"cd {shlex.quote(root_str)} && {cmd}", shell=True)
-
+        # Fallback if no graphical terminal is available
+        subprocess.Popen(cmd, cwd=root_str, shell=True)
 
 # =========================
 # MODERN HOVER TOOLTIP
