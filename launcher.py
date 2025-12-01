@@ -1,6 +1,8 @@
 import tkinter as tk
-import sys, subprocess
+import zipfile, shutil
+import sys, subprocess, shlex
 import webbrowser, platform
+import urllib.request
 from pathlib import Path
 from tkinter import ttk, messagebox
 
@@ -17,8 +19,16 @@ def get_root_dir():
         return Path(sys.executable).parent
     return Path(__file__).parent
 
+# The folder where Lite-Brain will be installed, regardless of where the .exe file is located.
+LAUNCHER_DIR = get_root_dir()
+WORKDIR = Path.home() / ".lite_brain"
+REPO_DIR = WORKDIR / "Lite-Brain"
 
-ROOT_DIR = get_root_dir()
+# GitHub ZIP URL for the prod branch (no Git required)
+ZIP_URL = "https://github.com/nixiz0/Lite-Brain/archive/refs/heads/prod.zip"
+
+# These variables will be *updated* once the project is unpacked.
+ROOT_DIR = LAUNCHER_DIR
 SERVICES_DIR = ROOT_DIR / "services"
 ENV_SOURCE = SERVICES_DIR / "env"          # Template .env
 ENV_TARGET = SERVICES_DIR / ".env"         # Generated/updated .env
@@ -26,6 +36,87 @@ COMPOSE_FILE_YML = SERVICES_DIR / "docker-compose.yml"
 COMPOSE_FILE_YAML = SERVICES_DIR / "docker-compose.yaml"
 APP_URL = "http://localhost:9010"
 PROJECT_NAME = "lite_brain"
+
+def set_root_dir(new_root: Path):
+    """
+    Updates ROOT_DIR and all dependent paths
+    to point to the Lite-Brain folder.
+    """
+    global ROOT_DIR, SERVICES_DIR, ENV_SOURCE, ENV_TARGET, COMPOSE_FILE_YML, COMPOSE_FILE_YAML
+
+    ROOT_DIR = new_root
+    SERVICES_DIR = ROOT_DIR / "services"
+    ENV_SOURCE = SERVICES_DIR / "env"
+    ENV_TARGET = SERVICES_DIR / ".env"
+    COMPOSE_FILE_YML = SERVICES_DIR / "docker-compose.yml"
+    COMPOSE_FILE_YAML = SERVICES_DIR / "docker-compose.yaml"
+
+
+# =========================
+# ZIP / REPO BOOTSTRAP (NO GIT)
+# =========================
+def ensure_repo_cloned() -> Path:
+    """
+    Ensure Lite-Brain is installed in ~/.lite_brain/Lite-Brain.
+
+    - If ~/.lite_brain/Lite-Brain already exists and looks valid → just return it
+    - Otherwise:
+        - download the prod ZIP from GitHub
+        - unzip in WORKDIR
+        - move the folder to ~/.lite_brain/Lite-Brain
+    """
+    # If already installed and 'services' exists → no download, just use it
+    if REPO_DIR.exists() and (REPO_DIR / "services").exists():
+        return REPO_DIR
+
+    WORKDIR.mkdir(parents=True, exist_ok=True)
+    zip_path = WORKDIR / "lite-brain-prod.zip"
+
+    # 1) Download ZIP
+    try:
+        urllib.request.urlretrieve(ZIP_URL, str(zip_path))
+    except Exception as e:
+        raise RuntimeError(
+            "Failed to download Lite-Brain archive.\n"
+            "Check your internet connection.\n\n"
+            f"Detail: {e}"
+        )
+
+    # 2) Extract ZIP into WORKDIR, detect root folder, move to REPO_DIR
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            zf.extractall(WORKDIR)
+            # GitHub zip creates a top-level folder like Lite-Brain-prod or Lite-Brain-<hash>
+            root_names = [
+                Path(name).parts[0]
+                for name in zf.namelist()
+                if name and not name.endswith("/")
+            ]
+
+        if not root_names:
+            raise RuntimeError("Downloaded archive appears to be empty.")
+
+        src_root = WORKDIR / root_names[0]
+
+        # If an old install exists, remove it (corrupted/old)
+        if REPO_DIR.exists():
+            shutil.rmtree(REPO_DIR)
+
+        shutil.move(str(src_root), str(REPO_DIR))
+    except Exception as e:
+        raise RuntimeError(
+            "Failed to extract Lite-Brain archive.\n"
+            f"Detail: {e}"
+        )
+    finally:
+        # Clean zip file if possible
+        try:
+            if zip_path.exists():
+                zip_path.unlink()
+        except Exception:
+            pass
+
+    return REPO_DIR
 
 
 # =========================
@@ -253,24 +344,27 @@ def launch_stack_in_external_terminal():
     check_docker()
     cmd = get_compose_cmd()
     system = platform.system()
+    root_str = str(ROOT_DIR)
 
     if system == "Windows":
-        subprocess.Popen(f'start "" cmd /c "{cmd}"', shell=True)
+        # Use `cd /d` to manage disk changes (C: -> D: etc.)
+        win_cmd = f'start "" cmd /c "cd /d \\"{root_str}\\" && {cmd}"'
+        subprocess.Popen(win_cmd, shell=True)
 
     elif system == "Darwin":  # macOS
         apple_script = f'''
         tell application "Terminal"
             activate
-            do script "{cmd}; exit"
+            do script "cd {shlex.quote(root_str)} && {cmd}; exit"
         end tell
         '''
         subprocess.Popen(["osascript", "-e", apple_script])
 
     else:  # Linux
         term_cmds = [
-            ["x-terminal-emulator", "-e", f"bash -lc '{cmd}; exit'"],
-            ["gnome-terminal", "--", "bash", "-lc", f"{cmd}; exit"],
-            ["konsole", "-e", f"bash -lc '{cmd}; exit'"],
+            ["x-terminal-emulator", "-e", f"bash -lc 'cd {shlex.quote(root_str)} && {cmd}; exit'"],
+            ["gnome-terminal", "--", "bash", "-lc", f"cd {shlex.quote(root_str)} && {cmd}; exit"],
+            ["konsole", "-e", f"bash -lc 'cd {shlex.quote(root_str)} && {cmd}; exit'"],
         ]
 
         for tcmd in term_cmds:
@@ -281,7 +375,7 @@ def launch_stack_in_external_terminal():
                 continue
 
         # Fallback: run in background if no terminal emulator is available
-        subprocess.Popen(cmd, shell=True)
+        subprocess.Popen(f"cd {shlex.quote(root_str)} && {cmd}", shell=True)
 
 
 # =========================
@@ -1436,8 +1530,20 @@ class EnvConfiguratorApp(tk.Tk):
 
 
 def main():
+    try:
+        repo_root = ensure_repo_cloned()
+        set_root_dir(repo_root)
+    except Exception as e:
+        # A little root command to display the error properly
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror("Error", f"Failed to prepare Lite-Brain repository:\n{e}")
+        root.destroy()
+        return
+
     app = EnvConfiguratorApp()
     app.mainloop()
+
 
 if __name__ == "__main__":
     main()
