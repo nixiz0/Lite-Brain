@@ -37,11 +37,20 @@ jobs:
           pip install pyinstaller
 
       - name: Build LiteBrainLauncher with PyInstaller
+        shell: bash
         run: |
-          pyinstaller launcher.py --onefile --name "LiteBrainLauncher"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ICON="logo/lite-brain-logo.ico"
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            ICON="logo/lite-brain-logo.icns"
+          else
+            ICON="logo/lite-brain-logo.png"
+          fi
+
+          pyinstaller launcher.py --onefile --name "LiteBrainLauncher" --icon "$ICON"
 
       - name: Rename binary with version
-        shell: bash   # 👈 important pour que le if [[ ... ]] marche aussi sur windows-latest
+        shell: bash
         run: |
           mkdir output
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then

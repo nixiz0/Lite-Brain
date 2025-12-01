@@ -104,7 +104,17 @@ Click on the launcher **LiteBrainLauncher.exe**. Do your configuration and start
         docker run --name temp_qdrant -p 6333:6333 -v qdrant_storage:/qdrant/storage qdrant/qdrant:v1.15
         ```
 
-For building the **LiteBrainLauncher.exe** i use *pyinstaller* and run the command : ```pyinstaller launcher.py --onefile --name "LiteBrainLauncher"```
+---
+
+## **Build the Launcher**
+
+For building the **LiteBrainLauncher.exe** i use *pyinstaller* and run the command : 
+
+**🔹 Windows** : ```pyinstaller launcher.py --onefile --name "LiteBrainLauncher" --icon logo/lite-brain-logo.ico```
+
+**🔹 MacOS** : ```pyinstaller launcher.py --onefile --name "LiteBrainLauncher" --icon logo/lite-brain-logo.icns```
+
+**🔹 Linux** : ```pyinstaller launcher.py --onefile --name "LiteBrainLauncher" --icon logo/lite-brain-logo.png```
 
 ---
 
